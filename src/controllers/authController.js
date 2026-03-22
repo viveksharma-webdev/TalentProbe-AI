@@ -45,7 +45,7 @@ async function registerUserController(req,res){
 async function loginUserController(req,res){
     try{
         const {email, password} = req.body;
-        const user = await userModel.findOne({email});
+        const user = await userModel.findOne({email:email});
         if(!user) return res.status(400).json({message:"invalid email or password"});
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -66,7 +66,7 @@ async function loginUserController(req,res){
         })
 
     } catch(error){
-        console.log("Error in Loggin user")
+        console.log("Error in Loggin user", error)
     }
 };
 

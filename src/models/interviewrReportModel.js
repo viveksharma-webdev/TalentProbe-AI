@@ -122,7 +122,7 @@ const interviewReportSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "users"
     },
-    title:{
+    jobTitle:{
         type: String,
         required: true,
     }

@@ -11,6 +11,27 @@ async function generateInterviewReportController(req,res){
 
         const interviewReportByAi = await generateInterviewReport({resume: resumeContent.text, selfDescription, jobDescription});
 
+        function fixPreparationPlan(flatArray) {
+                const result = [];
+
+                for (let i = 0; i < flatArray.length; i += 6) {
+                    result.push({
+                        day: Number(flatArray[i + 1]) || result.length + 1,
+                        focus: flatArray[i + 3] || "General",
+                        tasks: [flatArray[i + 5] || "Practice"]
+                    });
+                }
+
+                return result;
+        }
+
+
+        if (Array.isArray(interviewReportByAi.preparationPlan) && typeof interviewReportByAi.preparationPlan[0] === "string") {
+
+            interviewReportByAi.preparationPlan =
+                fixPreparationPlan(interviewReportByAi.preparationPlan);
+        }
+
         const interviewReport = await interviewReportModel.create({
             user: req.user.id,
             resume: resumeContent.text,
@@ -24,7 +45,7 @@ async function generateInterviewReportController(req,res){
         })
 
     } catch (error) {
-        console.log("Error in generating interview Report")
+        console.log("Error in generating interview Report", error)
     }
 }
 
@@ -51,7 +72,10 @@ async function getInterviewReportByIdController(req,res){
 
 async function getAllInterviewReportController(req,res){
     try {
-        const interviewReports = (await interviewReportModel.find({user: req.user.id})).sort({createdAt: -1}).select("-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGap -preparationPlan");
+        const interviewReports = await interviewReportModel
+    .find({ user: req.user.id })
+    .sort({ createdAt: -1 })
+    .select("-resume -selfDescription -jobDescription -__v -technicalQuestions -behavioralQuestions -skillGap -preparationPlan");
         res.status(200).json({
             message: "Interview Reports fetched successfully",
             interviewReports
