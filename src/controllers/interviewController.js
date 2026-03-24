@@ -7,7 +7,6 @@ const interviewReportModel = require("../models/interviewrReportModel.js");
 function fixQuestionsArray(arr) {
     if (!Array.isArray(arr)) return [];
 
-    // if already correct → return as is
     if (typeof arr[0] === "object") return arr;
 
     const result = [];
@@ -100,8 +99,6 @@ async function generateInterviewReportController(req, res) {
             preparationPlan: interviewReportByAi.preparationPlan,
             jobTitle: interviewReportByAi.jobTitle
         });
-
-        console.log("FINAL RESPONSE:", interviewReport);
 
         res.status(201).json({
             message: "Interview Report Generated Successfully",
