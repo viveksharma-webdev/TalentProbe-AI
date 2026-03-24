@@ -1,95 +1,94 @@
-const {GoogleGenAI} = require("@google/genai");
-const {z} = require("zod");
+const { GoogleGenAI } = require("@google/genai");
+const { z } = require("zod");
 const { zodToJsonSchema } = require("zod-to-json-schema");
 
 const ai = new GoogleGenAI({
     apiKey: process.env.GOOGLE_GENAI_API_KEY,
-
 });
 
 const interviewReportSchema = z.object({
-    matchScore: z.number().describe("A score between 0 to 100 indicating how well candidate's profile matches the job description"),
-    technicalQuestions : z.array(z.object({
-        question: z.string().describe("the technical questions can be asked in the interview"),
-        intention: z.string().describe("The intention of the interviewer behind asking this question"),
-        answer: z.string().describe("How to answer the question, what to cover, how to approach")
-    })).describe("Technical question that can be asked in interview along with their intention and how to answer"),
+    matchScore: z.number(),
+
+    technicalQuestions: z.array(z.object({
+        question: z.string(),
+        intention: z.string(),
+        answer: z.string()
+    })).min(3), 
+
     behavioralQuestions: z.array(z.object({
-        question: z.string().describe("the behavioral questions can be asked in the interview"),
-        intention: z.string().describe("The intention of the interviewer behind asking this question"),
-        answer: z.string().describe("How to answer the question, what to cover, how to approach")
-    })).describe("Behavioral question that can be asked in the interview along with their intention and how to answer"),
+        question: z.string(),
+        intention: z.string(),
+        answer: z.string()
+    })).min(3),
+
     skillGaps: z.array(z.object({
-        skill: z.string().describe(" The skills which candidate is lacking"),
-        severity: z.enum(["low","medium","high"]).describe("The severity of the skill gap")
-    })).describe("List of skill gap in the candidate's profile along with their severity"),
+        skill: z.string(),
+        severity: z.enum(["low", "medium", "high"])
+    })),
+
     preparationPlan: z.array(z.object({
-        day: z.number().describe("The day number in the preparation plan, starting from 1"),
-        focus: z.string().describe("The main focus of this day in the preparation plan"),
-        tasks: z.array(z.string().describe("List of task to be done on this day to follow the preparation plan"))
-    })).describe("A day-wise preparation plan for the candidate to follow in order to reduce the skill gap and severity"),
-    jobTitle: z.string().describe("The title of the job for which the interview report is generated")
-})
+        day: z.number(),
+        focus: z.string(),
+        tasks: z.array(z.string())
+    })),
 
-async function generateInterviewReport({resume,selfDescription, jobDescription}){
+    jobTitle: z.string()
+});
 
-    // const prompt = `Generate and interview report for a candidate with the following details:
-    //                 Resume: ${resume}
-    //                 Self Description: ${selfDescription}
-    //                 Job Description: ${jobDescription}
-    // `
+async function generateInterviewReport({ resume, selfDescription, jobDescription }) {
 
-   const prompt = `
-                    You are a strict JSON generator.
+    const prompt = `
+You are a strict JSON generator.
 
-                    Return ONLY valid JSON. No explanation, no text.
+Return ONLY valid JSON. No explanation.
 
-                    The JSON MUST follow this EXACT structure:
+STRICT RULES:
+- MUST return at least 5 technicalQuestions
+- MUST return at least 5 behavioralQuestions
+- DO NOT return empty arrays
+- DO NOT skip any field
+- DO NOT add extra fields
+- matchScore must be between 0-100
 
-                    {
-                    "matchScore": number,
-                    "technicalQuestions": [
-                        {
-                        "question": string,
-                        "intention": string,
-                        "answer": string
-                        }
-                    ],
-                    "behavioralQuestions": [
-                        {
-                        "question": string,
-                        "intention": string,
-                        "answer": string
-                        }
-                    ],
-                    "skillGaps": [
-                        {
-                        "skill": string,
-                        "severity": "low" | "medium" | "high"
-                        }
-                    ],
-                    "preparationPlan": [
-                        {
-                        "day": number,
-                        "focus": string,
-                        "tasks": string[]
-                        }
-                    ],
-                    "jobTitle":
-                    }
+FORMAT:
+{
+  "matchScore": number,
+  "technicalQuestions": [
+    {
+      "question": string,
+      "intention": string,
+      "answer": string
+    }
+  ],
+  "behavioralQuestions": [
+    {
+      "question": string,
+      "intention": string,
+      "answer": string
+    }
+  ],
+  "skillGaps": [
+    {
+      "skill": string,
+      "severity": "low" | "medium" | "high"
+    }
+  ],
+  "preparationPlan": [
+    {
+      "day": number,
+      "focus": string,
+      "tasks": string[]
+    }
+  ],
+  "jobTitle": string
+}
 
-                    Rules:
-                    - Do NOT add fields like resumeAnalysis, strengths, etc.
-                    - Do NOT skip any field
-                    - Ensure correct types
-                    - matchScore must be between 0–100
+Now generate:
 
-                    Now generate the report.
-
-                    Resume: ${resume}
-                    Self Description: ${selfDescription}
-                    Job Description: ${jobDescription}
-                    `;
+Resume: ${resume}
+Self Description: ${selfDescription}
+Job Description: ${jobDescription}
+`;
 
     const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -98,8 +97,37 @@ async function generateInterviewReport({resume,selfDescription, jobDescription})
             responseMimeType: "application/json",
             responseSchema: zodToJsonSchema(interviewReportSchema)
         }
-    })
-    return JSON.parse(response.text);
+    });
+
+    console.log("RAW AI RESPONSE:\n", response.text);
+
+    const parsed = JSON.parse(response.text);
+
+    return {
+        matchScore: parsed.matchScore || 0,
+
+        technicalQuestions:
+            parsed.technicalQuestions ||
+            parsed.technicalQuestion ||
+            [],
+
+        behavioralQuestions:
+            parsed.behavioralQuestions ||
+            parsed.behavioralQuestion ||
+            [],
+
+        skillGaps:
+            parsed.skillGaps ||
+            parsed.skillGap ||
+            [],
+
+        preparationPlan:
+            parsed.preparationPlan || [],
+
+        jobTitle:
+            parsed.jobTitle || "Software Engineer"
+    };
+
 }
 
 module.exports = generateInterviewReport;
