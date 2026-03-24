@@ -99,8 +99,6 @@ Job Description: ${jobDescription}
         }
     });
 
-    console.log("RAW AI RESPONSE:\n", response.text);
-
     const parsed = JSON.parse(response.text);
 
     return {
