@@ -4,7 +4,7 @@ const app = require("./src/app.js")
 
 
 
-app.listen(3000,()=>{
+app.listen(process.env.PORT,()=>{
     connectToDB();
     console.log("server is running on port 3000")
 });
